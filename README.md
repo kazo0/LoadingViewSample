@@ -25,7 +25,8 @@ Other heads: `net10.0-android`, `net10.0-ios`, `net10.0-browserwasm`.
 
 There are no hand-written view models or `ICommand` implementations anywhere in here, and that's
 the point. [`MainModel`](LoadingViewSample/Presentation/MainModel.cs) is a plain `partial record`.
-Every public method on it becomes an `IAsyncCommand` on the generated `MainViewModel`, and:
+Each public method on it that returns `void`, `Task`, or `ValueTask` becomes an `IAsyncCommand`
+on the generated `MainViewModel`, and:
 
 ```csharp
 public interface IAsyncCommand : ICommand, INotifyPropertyChanged, ILoadable
