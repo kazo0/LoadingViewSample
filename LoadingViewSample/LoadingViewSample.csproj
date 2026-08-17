@@ -22,8 +22,17 @@
       https://aka.platform.uno/singleproject-features
     -->
     <UnoFeatures>
-      Lottie;
+      SimpleTheme;
+      Hosting;
       Toolkit;
+      Logging;
+      MVUX;
+      Configuration;
+      HttpKiota;
+      Serialization;
+      Localization;
+      Navigation;
+      ThemeService;
       SkiaRenderer;
     </UnoFeatures>
   </PropertyGroup>
