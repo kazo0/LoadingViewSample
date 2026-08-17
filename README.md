@@ -4,14 +4,16 @@ A runnable Uno Platform sample for the
 [Toolkit Tuesdays: LoadingView](https://kazo0.dev/toolkit-tuesday/2026/08/18/toolkit-tuesday-loadingview.html)
 post on [kazo0.dev](https://kazo0.dev).
 
-Scaffolded with the recommended preset, which brings in MVUX, Uno Extensions and Uno Toolkit:
+Scaffolded with:
 
 ```bash
-dotnet new unoapp -preset recommended -o LoadingViewSample -n LoadingViewSample
+dotnet new unoapp -preset blank -toolkit -o LoadingViewSample -n LoadingViewSample
 ```
 
-Note that `-preset` defaults to `blank`, so the `-preset recommended` part matters — a bare
-`dotnet new unoapp` gives you the minimal template with none of the above.
+The `-toolkit` flag is what wires up Uno Toolkit: it adds `Toolkit` to `<UnoFeatures>` in the
+csproj, merges `<ToolkitResources />` into `App.xaml`, and puts the
+`xmlns:utu="using:Uno.Toolkit.UI"` namespace on `MainPage.xaml`. Nothing else was needed to start
+using `LoadingView`.
 
 ## Running it
 
@@ -21,48 +23,33 @@ dotnet run --project LoadingViewSample/LoadingViewSample.csproj -f net10.0-deskt
 
 Other heads: `net10.0-android`, `net10.0-ios`, `net10.0-browserwasm`.
 
-## The MVUX angle
-
-There are no hand-written view models or `ICommand` implementations anywhere in here, and that's
-the point. [`MainModel`](LoadingViewSample/Presentation/MainModel.cs) is a plain `partial record`.
-Each public method on it that returns `void`, `Task`, or `ValueTask` becomes an `IAsyncCommand`
-on the generated `MainViewModel`, and:
-
-```csharp
-public interface IAsyncCommand : ICommand, INotifyPropertyChanged, ILoadable
-```
-
-`IAsyncCommand` **already derives from `ILoadable`**. That's the whole trick. A generated MVUX
-command can be handed straight to a `LoadingView.Source` with nothing extra to write, which is why
-the same binding appears on both the `Button.Command` and the `LoadingView.Source` below.
+## What's in here
 
 | File | Purpose |
 | --- | --- |
-| `Presentation/MainModel.cs` | The MVUX model: three `IListState`s and three async methods that become commands. |
-| `Presentation/MainPage.xaml` | All three demos. |
-| `Presentation/MainPage.xaml.cs` | A little UI-only glue to kick off the initial loads. |
-| `Models/WeatherForecast.cs` | Trivial record used by the first demo's list. |
+| `AsyncCommand.cs` | An `ICommand` that is *also* an `ILoadable` — the busy-aware command from the post. |
+| `MainViewModel.cs` | Plain view model exposing three `AsyncCommand`s and their result collections. |
+| `WeatherForecast.cs` | Trivial record used by the first demo's list. |
+| `MainPage.xaml` | All three demos. |
 
 ## The three demos
 
 ### 1. Basic usage + a busy-aware command
 
-`FetchWeatherForecasts` is bound to both the button's `Command` and the `LoadingView`'s `Source`.
-One generated command drives both sides: it reports `IsExecuting`, the `LoadingView` swaps in the
-spinner, and the button disables itself for the duration.
+The same `AsyncCommand` instance is bound to both the button's `Command` and the `LoadingView`'s
+`Source`. One object drives both sides: it flips `IsExecuting`, the `LoadingView` swaps in the
+spinner, and because `CanExecute` returns `!IsExecuting` the button disables itself for the
+duration.
 
 ### 2. Waiting on multiple sources
 
-`CompositeLoadableSource` aggregates two `LoadableSource`s (an 800ms command and a 3000ms one) and
-reports itself as executing while *any* of them is. The spinner stays up until the slower command
+`CompositeLoadableSource` aggregates two `LoadableSource`s (an 800ms call and a 3000ms call) and
+reports itself as executing while *any* of them is. The spinner stays up until the slower call
 returns, then both lists appear together.
 
 This demo deliberately omits `IsActive="True"` on its `ProgressRing`. It still spins, because the
 `LoadingView` template toggles the `utu:ProgressExtensions.IsActive` attached property on whatever
 you put in `LoadingContent` as it moves between states.
-
-One subtlety worth knowing: the "Reload both" button executes the two *commands*, not the two model
-methods. Only the commands report `IsExecuting`, and that's what `CompositeLoadableSource` watches.
 
 ### 3. The gotcha — a null `Source` spins forever
 
@@ -91,8 +78,23 @@ warn: Uno.Toolkit.UI.LoadingView[0]
 Click **Set the Source** to hand it a real `ILoadable`. Because that command reports
 `IsExecuting == false`, the control leaves `Loading` immediately and fades its content in.
 
+## If you're using MVUX
+
+This sample deliberately sticks to classic MVVM — that's the territory where `LoadingView` earns
+its keep, since MVUX apps usually reach for `FeedView` instead (the post covers the trade-off).
+But the hand-rolled `AsyncCommand` isn't needed there at all: any public method on an MVUX model
+that returns `void`, `Task`, or `ValueTask` is generated into an `IAsyncCommand`, and that
+interface already derives from `ILoadable`:
+
+```csharp
+public interface IAsyncCommand : ICommand, INotifyPropertyChanged, ILoadable
+```
+
+So a generated MVUX command can be bound straight to a `LoadingView.Source` with nothing extra
+to write.
+
 ## Note on namespaces
 
 `ILoadable` lives in `Uno.Toolkit` — not `Uno.Toolkit.UI`, which is where the controls
-(`LoadingView`, `LoadableSource`, `CompositeLoadableSource`) live. If you implement it by hand
-you'll want `using Uno.Toolkit;`, though with MVUX you get it for free via `IAsyncCommand`.
+(`LoadingView`, `LoadableSource`, `CompositeLoadableSource`) live. Implementing it needs
+`using Uno.Toolkit;`.

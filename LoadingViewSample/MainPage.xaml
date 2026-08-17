@@ -1,12 +1,9 @@
-<Page x:Class="LoadingViewSample.Presentation.MainPage"
+<Page x:Class="LoadingViewSample.MainPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-      xmlns:local="using:LoadingViewSample.Presentation"
-      xmlns:models="using:LoadingViewSample.Models"
-      xmlns:uen="using:Uno.Extensions.Navigation.UI"
+      xmlns:local="using:LoadingViewSample"
       xmlns:utu="using:Uno.Toolkit.UI"
-      NavigationCacheMode="Required"
-      Background="{ThemeResource BackgroundBrush}">
+      Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
   <Page.Resources>
     <Style x:Key="SectionCardStyle" TargetType="Border">
@@ -28,7 +25,7 @@
       <Setter Property="Margin" Value="0,4,0,12" />
     </Style>
 
-    <DataTemplate x:Key="ForecastTemplate" x:DataType="models:WeatherForecast">
+    <DataTemplate x:Key="ForecastTemplate" x:DataType="local:WeatherForecast">
       <Grid ColumnDefinitions="100,70,*" Padding="0,6">
         <TextBlock Grid.Column="0" Text="{Binding Day}" FontWeight="SemiBold" />
         <TextBlock Grid.Column="1" Text="{Binding Temperature}" />
@@ -44,7 +41,7 @@
     <StackPanel Grid.Row="0" Padding="24,48,24,8">
       <TextBlock Text="Toolkit Tuesdays: LoadingView" FontSize="28" FontWeight="Bold" />
       <TextBlock Style="{StaticResource SectionCaptionStyle}"
-                 Text="Three demos from the post, driven entirely by MVUX commands. Every Source below is an IAsyncCommand, which already implements ILoadable." />
+                 Text="Three demos from the post: a busy-aware command, a composite source, and the null-Source gotcha." />
     </StackPanel>
 
     <ScrollViewer Grid.Row="1">
@@ -52,18 +49,16 @@
 
         <!-- ==========================================================
              1. Basic usage + a busy-aware command.
-             FetchWeatherForecasts is a public method on MainModel. MVUX
-             turns it into an IAsyncCommand, and because IAsyncCommand
-             derives from ILoadable, the very same binding drives both
-             the Button and the LoadingView.
+             The SAME AsyncCommand is bound to the Button's Command and
+             the LoadingView's Source. One object drives both sides.
              ========================================================== -->
         <Border Style="{StaticResource SectionCardStyle}">
           <StackPanel>
             <TextBlock Style="{StaticResource SectionTitleStyle}" Text="1. Basic usage + busy-aware command" />
             <TextBlock Style="{StaticResource SectionCaptionStyle}"
-                       Text="Refresh takes 1.5s. The same generated command is bound to both the Button and the LoadingView's Source, so the button disables itself while the spinner is up." />
+                       Text="Refresh takes 1.5s. The same AsyncCommand is bound to both the Button and the LoadingView's Source, so the button disables itself (CanExecute = !IsExecuting) while the spinner is up." />
 
-            <utu:LoadingView x:Name="BasicLoadingView" Source="{Binding FetchWeatherForecasts}" Height="330">
+            <utu:LoadingView x:Name="BasicLoadingView" Source="{Binding FetchWeatherForecasts}" Height="260">
               <!-- The default child is the LoadingView's Content. -->
               <Grid RowDefinitions="Auto,*">
                 <Button Grid.Row="0"
@@ -93,13 +88,13 @@
           <StackPanel>
             <TextBlock Style="{StaticResource SectionTitleStyle}" Text="2. Waiting on multiple sources" />
             <TextBlock Style="{StaticResource SectionCaptionStyle}"
-                       Text="Two independent commands (800ms and 3000ms). The spinner stays up until both are back, then everything appears together." />
+                       Text="Two independent calls (800ms and 3000ms). The spinner stays up until both are back, then everything appears together." />
 
-            <utu:LoadingView Height="330">
+            <utu:LoadingView Height="260">
               <utu:LoadingView.Source>
                 <utu:CompositeLoadableSource>
-                  <utu:LoadableSource Source="{Binding LoadFastContent}" />
-                  <utu:LoadableSource Source="{Binding LoadSlowContent}" />
+                  <utu:LoadableSource Source="{Binding LoadContent0Command}" />
+                  <utu:LoadableSource Source="{Binding LoadContent1Command}" />
                 </utu:CompositeLoadableSource>
               </utu:LoadingView.Source>
 
@@ -108,8 +103,8 @@
                         Content="Reload both"
                         Margin="0,0,0,8"
                         Click="OnReloadBoth" />
-                <ListView Grid.Row="1" ItemsSource="{Binding FastResults}" SelectionMode="None" />
-                <ListView Grid.Row="2" ItemsSource="{Binding SlowResults}" SelectionMode="None" />
+                <ListView Grid.Row="1" ItemsSource="{Binding Content0}" SelectionMode="None" />
+                <ListView Grid.Row="2" ItemsSource="{Binding Content1}" SelectionMode="None" />
               </Grid>
 
               <utu:LoadingView.LoadingContent>
@@ -127,7 +122,7 @@
              UpdateVisualState() resolves the target state with
              `Source?.IsExecuting ?? true`, so a null Source means
              Loading — forever. Watch the debug output for the
-             5-second warning the Toolkit logs.
+             5-second warning the Toolkit now logs.
              ========================================================== -->
         <Border Style="{StaticResource SectionCardStyle}">
           <StackPanel>

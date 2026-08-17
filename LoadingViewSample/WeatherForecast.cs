@@ -1,4 +1,4 @@
-namespace LoadingViewSample.Models;
+namespace LoadingViewSample;
 
 public record WeatherForecast(string Day, int TemperatureC, string Summary)
 {

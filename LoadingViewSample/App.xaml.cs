@@ -1,4 +1,5 @@
-using System.Diagnostics.CodeAnalysis;
+using System;
+using Microsoft.Extensions.Logging;
 using Uno.Resizetizer;
 
 namespace LoadingViewSample;
@@ -15,91 +16,118 @@ public partial class App : Application
     }
 
     protected Window? MainWindow { get; private set; }
-    protected IHost? Host { get; private set; }
 
-    [SuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "Uno.Extensions APIs are used in a way that is safe for trimming in this template context.")]
-    protected async override void OnLaunched(LaunchActivatedEventArgs args)
+    protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        var builder = this.CreateBuilder(args)
-            // Add navigation support for toolkit controls such as TabBar and NavigationView
-            .UseToolkitNavigation()
-            .Configure(host => host
+        MainWindow = new Window();
 #if DEBUG
-                // Switch to Development environment when running in DEBUG
-                .UseEnvironment(Environments.Development)
-#endif
-                .UseLogging(configure: (context, logBuilder) =>
-                {
-                    // Configure log levels for different categories of logging
-                    logBuilder
-                        .SetMinimumLevel(
-                            context.HostingEnvironment.IsDevelopment() ?
-                                LogLevel.Information :
-                                LogLevel.Warning)
-
-                        // Default filters for core Uno Platform namespaces
-                        .CoreLogLevel(LogLevel.Warning);
-
-                    // Uno Platform namespace filter groups
-                    // Uncomment individual methods to see more detailed logging
-                    //// Generic Xaml events
-                    //logBuilder.XamlLogLevel(LogLevel.Debug);
-                    //// Layout specific messages
-                    //logBuilder.XamlLayoutLogLevel(LogLevel.Debug);
-                    //// Storage messages
-                    //logBuilder.StorageLogLevel(LogLevel.Debug);
-                    //// Binding related messages
-                    //logBuilder.XamlBindingLogLevel(LogLevel.Debug);
-                    //// Binder memory references tracking
-                    //logBuilder.BinderMemoryReferenceLogLevel(LogLevel.Debug);
-                    //// DevServer and HotReload related
-                    //logBuilder.HotReloadCoreLogLevel(LogLevel.Information);
-                    //// Debug JS interop
-                    //logBuilder.WebAssemblyLogLevel(LogLevel.Debug);
-
-                }, enableUnoLogging: true)
-                .UseConfiguration(configure: configBuilder =>
-                    configBuilder
-                        .EmbeddedSource<App>()
-                        .Section<AppConfig>()
-                )
-                // Enable localization (see appsettings.json for supported languages)
-                .UseLocalization()
-                .UseHttp((context, services) => {
-#if DEBUG
-                // DelegatingHandler will be automatically injected
-                services.AddTransient<DelegatingHandler, DebugHttpHandler>();
-#endif
-
-})
-                .ConfigureServices((context, services) =>
-                {
-                    // TODO: Register your services
-                    //services.AddSingleton<IMyService, MyService>();
-                })
-                .UseNavigation(ReactiveViewModelMappings.ViewModelMappings, RegisterRoutes)
-            );
-        MainWindow = builder.Window;
-
-        #if DEBUG
         MainWindow.UseStudio();
 #endif
-                MainWindow.SetWindowIcon();
 
-        Host = await MainWindow.InitializeNavigationAsync(
-            () => Task.FromResult(builder.Build()),
-            initialRoute: "Main"
-        );
+
+        // Do not repeat app initialization when the Window already has content,
+        // just ensure that the window is active
+        if (MainWindow.Content is not Frame rootFrame)
+        {
+            // Create a Frame to act as the navigation context and navigate to the first page
+            rootFrame = new Frame();
+
+            // Place the frame in the current Window
+            MainWindow.Content = rootFrame;
+
+            rootFrame.NavigationFailed += OnNavigationFailed;
+        }
+
+        if (rootFrame.Content == null)
+        {
+            // When the navigation stack isn't restored navigate to the first page,
+            // configuring the new page by passing required information as a navigation
+            // parameter
+            rootFrame.Navigate(typeof(MainPage), args.Arguments);
+        }
+
+        MainWindow.SetWindowIcon();
+        // Ensure the current window is active
+        MainWindow.Activate();
     }
 
-    private static void RegisterRoutes(IViewRegistry views, IRouteRegistry routes)
+    /// <summary>
+    /// Invoked when Navigation to a certain page fails
+    /// </summary>
+    /// <param name="sender">The Frame which failed navigation</param>
+    /// <param name="e">Details about the navigation failure</param>
+    void OnNavigationFailed(object sender, NavigationFailedEventArgs e)
     {
-        views.Register(
-            new ViewMap<MainPage, MainModel>()
-        );
+        throw new InvalidOperationException($"Failed to load {e.SourcePageType.FullName}: {e.Exception}");
+    }
 
-        routes.Register(
-            new RouteMap("Main", View: views.FindByViewModel<MainModel>(), IsDefault:true)
-        );
+    /// <summary>
+    /// Configures global Uno Platform logging
+    /// </summary>
+    public static void InitializeLogging()
+    {
+#if DEBUG
+        // Logging is disabled by default for release builds, as it incurs a significant
+        // initialization cost from Microsoft.Extensions.Logging setup. If startup performance
+        // is a concern for your application, keep this disabled. If you're running on the web or
+        // desktop targets, you can use URL or command line parameters to enable it.
+        //
+        // For more performance documentation: https://platform.uno/docs/articles/Uno-UI-Performance.html
+
+        var factory = LoggerFactory.Create(builder =>
+        {
+#if __WASM__
+            builder.AddProvider(new global::Uno.Extensions.Logging.WebAssembly.WebAssemblyConsoleLoggerProvider());
+#elif __IOS__
+            builder.AddProvider(new global::Uno.Extensions.Logging.OSLogLoggerProvider());
+
+            // Log to the Visual Studio Debug console
+            builder.AddConsole();
+#else
+            builder.AddConsole();
+#endif
+
+            // Exclude logs below this level
+            builder.SetMinimumLevel(LogLevel.Information);
+
+            // Default filters for Uno Platform namespaces
+            builder.AddFilter("Uno", LogLevel.Warning);
+            builder.AddFilter("Windows", LogLevel.Warning);
+            builder.AddFilter("Microsoft", LogLevel.Warning);
+
+            // Generic Xaml events
+            // builder.AddFilter("Microsoft.UI.Xaml", LogLevel.Debug );
+            // builder.AddFilter("Microsoft.UI.Xaml.VisualStateGroup", LogLevel.Debug );
+            // builder.AddFilter("Microsoft.UI.Xaml.StateTriggerBase", LogLevel.Debug );
+            // builder.AddFilter("Microsoft.UI.Xaml.UIElement", LogLevel.Debug );
+            // builder.AddFilter("Microsoft.UI.Xaml.FrameworkElement", LogLevel.Trace );
+
+            // Layouter specific messages
+            // builder.AddFilter("Microsoft.UI.Xaml.Controls", LogLevel.Debug );
+            // builder.AddFilter("Microsoft.UI.Xaml.Controls.Layouter", LogLevel.Debug );
+            // builder.AddFilter("Microsoft.UI.Xaml.Controls.Panel", LogLevel.Debug );
+
+            // builder.AddFilter("Windows.Storage", LogLevel.Debug );
+
+            // Binding related messages
+            // builder.AddFilter("Microsoft.UI.Xaml.Data", LogLevel.Debug );
+            // builder.AddFilter("Microsoft.UI.Xaml.Data", LogLevel.Debug );
+
+            // Binder memory references tracking
+            // builder.AddFilter("Uno.UI.DataBinding.BinderReferenceHolder", LogLevel.Debug );
+
+            // DevServer and HotReload related
+            // builder.AddFilter("Uno.UI.RemoteControl", LogLevel.Information);
+
+            // Debug JS interop
+            // builder.AddFilter("Uno.Foundation.WebAssemblyRuntime", LogLevel.Debug );
+        });
+
+        global::Uno.Extensions.LogExtensionPoint.AmbientLoggerFactory = factory;
+
+#if HAS_UNO
+        global::Uno.UI.Adapter.Microsoft.Extensions.Logging.LoggingAdapter.Initialize();
+#endif
+#endif
     }
 }
