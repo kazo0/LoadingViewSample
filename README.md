@@ -1,6 +1,8 @@
 # LoadingViewSample
 
-A runnable Uno Platform sample for the **Toolkit Tuesdays: LoadingView** post.
+A runnable Uno Platform sample for the
+[Toolkit Tuesdays: LoadingView](https://kazo0.dev/toolkit-tuesday/2026/08/18/toolkit-tuesday-loadingview.html)
+post on [kazo0.dev](https://kazo0.dev).
 
 Scaffolded with:
 
